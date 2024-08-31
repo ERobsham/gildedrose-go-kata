@@ -200,3 +200,45 @@ func Test_BackstagePasses_UpdateQuality_Rules(t *testing.T) {
 }
 
 //endregion -- Regression Tests
+
+// region -- New Functionality Tests
+
+func Test_Conjured_UpdateQuality_Rules(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []*Item
+		expected []*Item
+	}{
+		{
+			name: "Conjured items degrade in Quality twice as fast as normal items",
+			args: []*Item{
+				{Name: "Rabbit's Foot", Quality: 1, SellIn: 1},
+				{Name: "Conjured Mana Cake", Quality: 2, SellIn: 1},
+				{Name: "Rabbit's Foot", Quality: 2, SellIn: 0},
+				{Name: "Conjured Mana Cake", Quality: 4, SellIn: 0},
+			},
+			expected: []*Item{
+				{Name: "Rabbit's Foot", Quality: 0, SellIn: 0},
+				{Name: "Conjured Mana Cake", Quality: 0, SellIn: 0},
+				{Name: "Rabbit's Foot", Quality: 0, SellIn: -1},
+				{Name: "Conjured Mana Cake", Quality: 0, SellIn: -1},
+			},
+		},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			UpdateQuality(tt.args)
+
+			for idx, got := range tt.args {
+				want := tt.expected[idx]
+
+				if !reflect.DeepEqual(got, want) {
+					t.Errorf("got: %+v  want:%+v", got, want)
+				}
+			}
+		})
+	}
+}
+
+//endregion -- New Functionality Tests
