@@ -1,0 +1,9 @@
+# misc
+.DS_Store
+
+# ignore debug artifacts
+__bin*
+
+# ignore test coverage results
+coverage.out
+
