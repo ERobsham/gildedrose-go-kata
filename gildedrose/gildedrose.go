@@ -24,6 +24,7 @@ const (
 	Type_Aged
 	Type_Legendary
 	Type_BackstagePasses
+	Type_Conjured
 )
 
 func (item *Item) intoType() ItemType {
@@ -42,6 +43,8 @@ func (item *Item) intoType() ItemType {
 		return Type_Aged
 	} else if strings.HasPrefix(item.Name, "Backstage passes") {
 		return Type_BackstagePasses
+	} else if strings.HasPrefix(item.Name, "Conjured") {
+		return Type_Conjured
 	} else {
 		return Type_Normal
 	}
@@ -55,6 +58,8 @@ func (item *Item) updateQuality() {
 		updateQuality_Aged(item)
 	case Type_BackstagePasses:
 		updateQuality_BackstagePass(item)
+	case Type_Conjured:
+		updateQuality_Conjured(item)
 	case Type_Normal:
 		updateQuality_Normal(item)
 	}
@@ -97,6 +102,10 @@ func updateQuality_BackstagePass(item *Item) {
 	} else {
 		item.adjustQualityBy(1)
 	}
+}
+func updateQuality_Conjured(item *Item) {
+	updateQuality_Normal(item)
+	updateQuality_Normal(item)
 }
 
 // region -- misc helpers
