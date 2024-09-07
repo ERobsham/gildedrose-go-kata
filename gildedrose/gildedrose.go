@@ -5,6 +5,29 @@ import (
 	"strings"
 )
 
+//region -- Constants / Definitions
+
+const (
+	Quality_Min = 0
+	Quality_Max = 50
+
+	Prefix_BackstagePass = "Backstage passes"
+	Prefix_Conjured      = "Conjured"
+)
+
+var legendaryItems = map[string]struct{}{
+	"Sulfuras, Hand of Ragnaros": {},
+}
+
+var agedItems = map[string]struct{}{
+	// aged cheeses / fine wines / etc
+	"Aged Brie": {},
+}
+
+//endregion -- Constants / Definitions
+
+//region -- Base Functionality
+
 type Item struct {
 	Name            string
 	SellIn, Quality int
@@ -12,87 +35,70 @@ type Item struct {
 
 func UpdateQuality(items []*Item) {
 	for _, item := range items {
-		item.updateQuality()
-		item.updateSellIn()
+		u := UpdaterFor(item)
+		u.UpdateQuality(item)
+		u.UpdateSellIn(item)
 	}
 }
 
-type ItemType int
+//endregion -- Base Functionality
 
-const (
-	Type_Normal ItemType = iota
-	Type_Aged
-	Type_Legendary
-	Type_BackstagePasses
-	Type_Conjured
-)
+//region -- ItemType specific behavior
 
-func (item *Item) intoType() ItemType {
-	var legendaryItems = map[string]struct{}{
-		"Sulfuras, Hand of Ragnaros": {},
-	}
-
-	var agedItems = map[string]struct{}{
-		// aged cheeses / fine wines / etc
-		"Aged Brie": {},
+func UpdaterFor(item *Item) ItemUpdater {
+	var normal NormalItem
+	updater := ItemUpdater{
+		UpdateQuality: normal.UpdateQuality,
+		UpdateSellIn:  normal.UpdateSellIn,
 	}
 
 	if _, exists := legendaryItems[item.Name]; exists {
-		return Type_Legendary
+		var legendary LegendaryItem
+		updater.UpdateQuality = legendary.UpdateQuality
+		updater.UpdateSellIn = legendary.UpdateSellIn
 	} else if _, exists := agedItems[item.Name]; exists {
-		return Type_Aged
-	} else if strings.HasPrefix(item.Name, "Backstage passes") {
-		return Type_BackstagePasses
-	} else if strings.HasPrefix(item.Name, "Conjured") {
-		return Type_Conjured
-	} else {
-		return Type_Normal
+		var aged AgedItem
+		updater.UpdateQuality = aged.UpdateQuality
+	} else if strings.HasPrefix(item.Name, Prefix_BackstagePass) {
+		var backstage BackstagePassItem
+		updater.UpdateQuality = backstage.UpdateQuality
+	} else if strings.HasPrefix(item.Name, Prefix_Conjured) {
+		var conjured ConjuredItem
+		updater.UpdateQuality = conjured.UpdateQuality
 	}
+
+	return updater
 }
 
-func (item *Item) updateQuality() {
-	switch item.intoType() {
-	case Type_Legendary:
-		updateQuality_Legendary(item)
-	case Type_Aged:
-		updateQuality_Aged(item)
-	case Type_BackstagePasses:
-		updateQuality_BackstagePass(item)
-	case Type_Conjured:
-		updateQuality_Conjured(item)
-	case Type_Normal:
-		updateQuality_Normal(item)
-	}
+type ItemUpdater struct {
+	UpdateQuality func(item *Item)
+	UpdateSellIn  func(item *Item)
 }
 
-func (item *Item) updateSellIn() {
-	if item.intoType() == Type_Legendary {
-		return
-	} else {
-		item.SellIn -= 1
-	}
-}
+type LegendaryItem struct{}
+type NormalItem struct{}
+type AgedItem struct{}
+type BackstagePassItem struct{}
+type ConjuredItem struct{}
 
-func (i *Item) adjustQualityBy(delta int) {
-	i.Quality = clamp(i.Quality+delta, 0, 50)
-}
+func (NormalItem) UpdateSellIn(item *Item)    { item.SellIn -= 1 }
+func (LegendaryItem) UpdateSellIn(item *Item) {}
 
-func updateQuality_Legendary(item *Item) {}
-func updateQuality_Normal(item *Item) {
+func (NormalItem) UpdateQuality(item *Item) {
 	if item.SellIn > 0 {
 		item.adjustQualityBy(-1)
 	} else {
 		item.adjustQualityBy(-2)
 	}
 }
-func updateQuality_Aged(item *Item) {
+func (AgedItem) UpdateQuality(item *Item) {
 	if item.SellIn > 0 {
 		item.adjustQualityBy(1)
 	} else {
 		item.adjustQualityBy(2)
 	}
 }
-func updateQuality_BackstagePass(item *Item) {
+func (BackstagePassItem) UpdateQuality(item *Item) {
 	if item.SellIn < 1 {
 		item.Quality = 0
 	} else if item.SellIn < 6 {
@@ -103,12 +109,20 @@ func updateQuality_BackstagePass(item *Item) {
 		item.adjustQualityBy(1)
 	}
 }
-func updateQuality_Conjured(item *Item) {
-	updateQuality_Normal(item)
-	updateQuality_Normal(item)
+func (ConjuredItem) UpdateQuality(item *Item) {
+	normal := NormalItem{}
+	normal.UpdateQuality(item)
+	normal.UpdateQuality(item)
 }
+func (LegendaryItem) UpdateQuality(item *Item) {}
 
-// region -- misc helpers
+//endregion -- ItemType specific behavior
+
+//region -- misc helpers
+
+func (i *Item) adjustQualityBy(delta int) {
+	i.Quality = clamp(i.Quality+delta, Quality_Min, Quality_Max)
+}
 
 func clamp[T cmp.Ordered](n T, low T, high T) T {
 	return max(min(n, high), low)
